@@ -1,6 +1,6 @@
 # TP Morpion — Apprentissage par renforcement
 
-Implémentation du TP de Sylvain Gault : un agent qui apprend à jouer au
+Implémentation du TP 0 - morpion: un agent qui apprend à jouer au
 morpion par Temporal-Difference learning, à la Sutton & Barto.
 
 ## Structure du projet
