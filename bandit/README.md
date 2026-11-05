@@ -7,8 +7,8 @@
 Nous avons réalisé le TP 1 - bandit manchot : nous avons implémenté un
 bandit à 10 bras et trois stratégies (ε-greedy, initialisation optimiste,
 UCB), que nous avons comparées en stationnaire puis en non-stationnaire
-(bonus). Pour chaque question, nous reproduisons le code qui y répond
-directement sous la réponse.
+(bonus). Chaque question est numérotée comme dans le sujet ; sous chaque
+réponse, nous reproduisons le code qui y répond.
 
 ## Organisation du travail
 
@@ -25,6 +25,8 @@ chaque exercice, nous avons :
 
 Nous avons donc tous traité les mêmes difficultés : implémentation des
 classes, expériences sur 2000 problèmes, et interprétation des résultats.
+Comme le demande le sujet, chaque question indique qui a fait quoi (code,
+graphiques, rédaction).
 
 ## Structure du projet
 
@@ -52,7 +54,7 @@ import numpy as np
 
 # main.py
 from bandit import Ban10, Bandit, MovingBan10
-from experiments import SERIES_COLORS, plot_results, run_experiment, save
+from experiments import plot_results, run_experiment, save
 from players import GreedyPlayer, OptimistGreedyPlayer, UCBGreedyPlayer
 ```
 
@@ -71,12 +73,22 @@ La graine rend les résultats reproductibles. Lancer un exercice seul donne
 des chiffres légèrement différents, car la séquence aléatoire n'est plus
 la même.
 
+**Précision des chiffres.** Chaque exercice tire ses propres 2000
+problèmes, donc une même stratégie n'a pas exactement le même score d'un
+exercice à l'autre : par exemple, ε = 0.1 donne 77.8 %, 79.5 % ou 80.2 % de
+choix optimaux aux exercices 4, 5 et 6. Ces petits écarts (2-3 points)
+viennent du hasard, pas du code. Nous ne comparons donc que les écarts
+plus grands. Dans un même exercice, toutes les stratégies jouent sur les
+mêmes problèmes (question 5.3).
+
 ---
 
 ## Exercice 1 : le bandit manchot
 
-**1.1-1.2** `Bandit.__init__` tire `avg ~ N(0, 1)` ; `play()` renvoie un
-tirage `N(avg, 1)`.
+**1.1** Le constructeur de `Bandit` tire `avg` suivant une gaussienne de
+moyenne 0 et de variance 1.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 class Bandit:
@@ -85,32 +97,24 @@ class Bandit:
 
     def __init__(self):
         self.avg = random.gauss(0, 1)
+```
 
+**1.2** `play()` renvoie un tirage gaussien centré sur `self.avg`, de
+variance 1.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    # (méthode de Bandit)
     def play(self):
         return random.gauss(self.avg, 1)
 ```
 
 **1.3** 1000 tirages d'un même bandit : l'histogramme a la forme en cloche
 d'une gaussienne, centrée sur `avg` (ligne pointillée), d'écart-type ≈ 1.
+Nous obtenons bien une distribution normale.
 
-![](figures/ex1_3_un_bandit.png)
-
-**1.4** Trois bandits : trois cloches de même largeur mais de pics
-différents, chacun centré sur son propre `avg`. Les moyennes empiriques
-retrouvent bien les vraies moyennes :
-
-| | `avg` | moyenne de 1000 tirages |
-|---|---|---|
-| Bandit 0 | 0.889 | 0.871 |
-| Bandit 1 | 0.153 | 0.189 |
-| Bandit 2 | −0.550 | −0.573 |
-
-![](figures/ex1_4_trois_bandits.png)
-
-Les distributions se recouvrent largement : un seul tirage ne suffit pas à
-savoir quel bras est le meilleur. C'est tout l'enjeu du problème.
-
-Code des questions 1.3 et 1.4 (`main.py`) :
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 def cmd_ex1(args):
@@ -118,38 +122,61 @@ def cmd_ex1(args):
     bins = np.linspace(-5, 5, 41)
     fig, ax = plt.subplots(figsize=(8, 4))
     bandit = Bandit()
-    ax.hist([bandit.play() for _ in range(1000)], bins=bins,
-            color=SERIES_COLORS[0], edgecolor="#fcfcfb", linewidth=1)
-    ax.axvline(bandit.avg, color="#0b0b0b", linewidth=1, linestyle="--")
-    ax.set_title(f"Ex 1.3 — 1000 tirages d'un Bandit (avg = {bandit.avg:.2f})",
-                 loc="left")
+    ax.hist([bandit.play() for _ in range(1000)], bins=bins, edgecolor="white")
+    ax.axvline(bandit.avg, color="black", linestyle="--")
+    ax.set_title(f"Ex 1.3 : 1000 tirages d'un Bandit (avg = {bandit.avg:.2f})")
     ax.set_xlabel("Récompense")
     ax.set_ylabel("Effectif")
     save(fig, "ex1_3_un_bandit.png")
     print(f"  Bandit : avg = {bandit.avg:.3f}")
+    # ... suite : question 1.4
+```
 
+![](figures/ex1_3_un_bandit.png)
+
+**1.4** Trois bandits : trois cloches de même largeur mais de pics
+différents, chacun centré sur son propre `avg`. Nous obtenons bien trois
+distributions d'espérances différentes, et les moyennes empiriques
+retrouvent les vraies moyennes :
+
+| | `avg` | moyenne de 1000 tirages |
+|---|---|---|
+| Bandit 0 | 0.889 | 0.871 |
+| Bandit 1 | 0.153 | 0.189 |
+| Bandit 2 | −0.550 | −0.573 |
+
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    # (suite de cmd_ex1)
     fig, ax = plt.subplots(figsize=(8, 4))
-    for i, color in enumerate(SERIES_COLORS[:3]):
+    for i in range(3):
         b = Bandit()
         samples = [b.play() for _ in range(1000)]
-        ax.hist(samples, bins=bins, color=color, alpha=0.55,
+        ax.hist(samples, bins=bins, color=f"C{i}", alpha=0.5,
                 label=f"Bandit {i} (avg = {b.avg:.2f})")
-        ax.axvline(b.avg, color=color, linewidth=1.5, linestyle="--")
+        ax.axvline(b.avg, color=f"C{i}", linestyle="--")
         print(f"  Bandit {i} : avg = {b.avg:.3f}, moyenne empirique = {np.mean(samples):.3f}")
-    ax.set_title("Ex 1.4 — 1000 tirages de 3 Bandit", loc="left")
+    ax.set_title("Ex 1.4 : 1000 tirages de 3 Bandit")
     ax.set_xlabel("Récompense")
     ax.set_ylabel("Effectif")
     ax.legend()
     save(fig, "ex1_4_trois_bandits.png")
 ```
 
+![](figures/ex1_4_trois_bandits.png)
+
+Les distributions se recouvrent largement : un seul tirage ne suffit pas à
+savoir quel bras est le meilleur. C'est tout l'enjeu du problème.
+
 ## Exercice 2 : le Ban10
 
-**2.1** `Ban10.__init__` crée une liste de 10 `Bandit`.
+**2.1** Le constructeur de `Ban10` instancie 10 `Bandit` et les stocke dans
+la liste `self.bandits`. L'attribut de classe `bandit_class` permet de
+réutiliser `Ban10` à l'exercice 7 avec des bandits mobiles, sans dupliquer
+le code.
 
-**2.2** `best_action` est l'indice du bandit de plus grand `avg`.
-
-**2.3** `play(action)` renvoie `self.bandits[action].play()`.
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 class Ban10:
@@ -160,17 +187,30 @@ class Ban10:
     def __init__(self, n=10):
         self.bandits = [self.bandit_class() for _ in range(n)]
         self.best_action = self._compute_best_action()
+```
 
+**2.2** L'attribut `best_action`, calculé dans le constructeur, est le
+numéro du bandit de plus grand `avg`.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    # (méthode de Ban10)
     def _compute_best_action(self):
         avgs = [b.avg for b in self.bandits]
         return avgs.index(max(avgs))
+```
 
+**2.3** `play(action)` prend le numéro du bras (0 à 9) et renvoie la
+récompense de ce bras.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    # (méthode de Ban10)
     def play(self, action):
         return self.bandits[action].play()
 ```
-
-L'attribut de classe `bandit_class` permet de réutiliser `Ban10` à
-l'exercice 7 avec des bandits mobiles, sans dupliquer le code.
 
 Exemple (`python main.py ex2`) :
 
@@ -196,8 +236,11 @@ best_action = 9
 
 ## Exercice 3 : algorithme ε-greedy
 
-**3.1-3.2** `GreedyPlayer(n, eps)` stocke `n`, `eps`, et les tableaux
-`action_values` (Q) et `eval_count` (N), initialisés à 0.
+**3.1** Le constructeur de `GreedyPlayer` prend `n` (nombre d'actions) et
+`eps` (valeur de ε) et les stocke dans des attributs. Le paramètre
+optionnel `alpha` (pas constant) ne sert qu'aux exercices 5 et 7.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 class GreedyPlayer:
@@ -217,19 +260,52 @@ class GreedyPlayer:
         self.steps = 0                   # nombre d'appels à reward
 ```
 
-**3.3-3.7** `get_action()` tire `random.random()`, pose
-`explore = valeur < eps`, puis appelle `_random_action()` (bras uniforme) si
-`explore` vaut True, sinon `_greedy_action()` (argmax de Q, égalités
-départagées au hasard).
+**3.2** Dans le même constructeur, Q et N sont initialisés à 0 sous les
+noms `action_values` (estimation de la valeur de chaque action) et
+`eval_count` (nombre de fois où chaque action a été choisie). L'attribut
+`steps` compte les appels à `reward`, ce qui servira pour UCB (6.2).
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
-    # (méthodes de GreedyPlayer, suite)
+        self.action_values = [0.0] * n   # Q
+        self.eval_count = [0] * n        # N
+```
+
+**3.3** `get_action()` ne prend aucun paramètre et renvoie le numéro du
+levier à actionner sur le `Ban10`. Sa version complète, construite aux
+questions 3.4 et 3.7 :
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    # (méthode de GreedyPlayer)
     def get_action(self):
         explore = random.random() < self.eps
         if explore:
             return self._random_action()
         return self._greedy_action()
+```
 
+**3.4** Dans `get_action`, nous tirons une valeur uniforme entre 0 et 1 avec
+`random.random()` et la comparons à ε : `explore` vaut `True` si la valeur
+est inférieure à `eps`, `False` sinon.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+        explore = random.random() < self.eps
+```
+
+**3.5** `_greedy_action` renvoie l'action de plus grande valeur estimée.
+En cas d'égalité, `_argmax` choisit au hasard parmi les actions ex aequo.
+C'est important au début : tous les Q valent 0, et un `argmax` classique
+choisirait toujours le bras 0.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    # (méthodes de GreedyPlayer)
     def _greedy_action(self):
         return self._argmax(self.action_values)
 
@@ -238,26 +314,46 @@ départagées au hasard).
         """Indice de la plus grande valeur, égalités départagées au hasard."""
         best = max(values)
         return random.choice([i for i, v in enumerate(values) if v == best])
+```
 
+**3.6** `_random_action` renvoie une action tirée uniformément parmi les
+`n` actions.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    # (méthode de GreedyPlayer)
     def _random_action(self):
         return random.randrange(self.n)
 ```
 
-Départager les égalités au hasard est important au début : tous les Q
-valent 0, et un `argmax` classique choisirait toujours le bras 0.
+**3.7** `get_action` appelle `_random_action` si `explore` vaut `True`,
+sinon `_greedy_action`, et renvoie l'action obtenue (code complet à la
+question 3.3) :
 
-**3.8** `reward(action, r)` met à jour par moyenne incrémentale :
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+        if explore:
+            return self._random_action()
+        return self._greedy_action()
+```
+
+**3.8** `reward(action, r)` met à jour N et Q pour l'action jouée, par
+moyenne incrémentale :
 
 ```
 N(a) <- N(a) + 1
 Q(a) <- Q(a) + (r - Q(a)) / N(a)
 ```
 
-Un paramètre optionnel `alpha` remplace `1/N(a)` par un pas constant. Il
+Le paramètre optionnel `alpha` remplace `1/N(a)` par un pas constant. Il
 n'est utilisé qu'aux exercices 5 (comparaison) et 7.
 
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
 ```python
-    # (méthode de GreedyPlayer, suite)
+    # (méthode de GreedyPlayer)
     def reward(self, action, reward):
         self.steps += 1
         self.eval_count[action] += 1
@@ -265,9 +361,24 @@ n'est utilisé qu'aux exercices 5 (comparaison) et 7.
         self.action_values[action] += step_size * (reward - self.action_values[action])
 ```
 
-**3.9-3.11** Boucle de 1000 itérations `get_action → Ban10.play → reward`,
-qui affiche la récompense et si le choix était optimal
-(`python main.py ex3`) :
+**3.9** Dans le code principal (`cmd_ex3`), nous créons un `Ban10` et un
+`GreedyPlayer` pour 10 actions, puis enchaînons `get_action`,
+`Ban10.play` et `reward` :
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    ban = Ban10()
+    player = GreedyPlayer(10, args.eps)
+    action = player.get_action()
+    reward = ban.play(action)
+    player.reward(action, reward)
+```
+
+**3.10** Ces trois appels sont placés dans une boucle de 1000 itérations
+(`args.steps` vaut 1000 par défaut) :
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 def cmd_ex3(args):
@@ -283,16 +394,28 @@ def cmd_ex3(args):
         rewards.append(reward)
         optimal = action == ban.best_action
         n_optimal += optimal
+        # ... affichage : question 3.11
+```
+
+**3.11** À chaque itération, nous affichons la récompense et si le choix
+était optimal (`action == ban.best_action`). Par défaut, seuls les 20
+premiers et les 5 derniers coups s'affichent ; `--verbose` affiche les
+1000.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+        # (dans la boucle de cmd_ex3)
         if args.verbose or t < 20 or t >= args.steps - 5:
             print(f"  coup {t:4d} : bras {action}  récompense {reward:+.3f}  "
                   f"{'optimal' if optimal else '-'}")
         elif t == 20:
             print("  ...")
+    # (après la boucle)
     print(f"  Meilleur bras : {ban.best_action}. Choix optimal sur "
           f"{n_optimal}/{args.steps} coups.")
     print(f"  Q estimés : {[round(q, 2) for q in player.action_values]}")
     print(f"  Vrais avg : {[round(b.avg, 2) for b in ban.bandits]}")
-    # ... suite : tracé de la question 4.1 (voir plus bas)
 ```
 
 ```
@@ -303,26 +426,27 @@ coup    3 : bras 2  récompense -1.080  -
 coup    4 : bras 3  récompense +0.581  optimal
 coup    5 : bras 3  récompense +1.388  optimal
 ...
-Choix optimal sur 867/1000 coups.
+Choix optimal sur 905/1000 coups.
 ```
 
-Nous observons le comportement greedy au démarrage : tout est à 0, et un bras qui
-donne une récompense négative passe sous 0. Le joueur essaie donc d'autres
-bras jusqu'à en trouver un positif (ici le bras 3, le meilleur), puis il
-s'y tient.
+Nous observons le comportement greedy au démarrage : tout est à 0, et un
+bras qui donne une récompense négative passe sous 0. Le joueur essaie donc
+d'autres bras jusqu'à en trouver un positif (ici le bras 3, le meilleur),
+puis il s'y tient.
 
 ## Exercice 4 : graphiques simples
 
-**4.1** La récompense d'un seul joueur est très bruitée : chaque tirage a
-une variance de 1, du même ordre que les écarts entre bras. Nous ne voyons
-aucune tendance.
+**4.1** La récompense d'un seul joueur au cours des 1000 itérations est
+très bruitée : chaque tirage a une variance de 1, du même ordre que les
+écarts entre bras. Nous ne voyons aucune tendance.
+
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
     # (fin de cmd_ex3) : récompense du joueur à chaque coup
     fig, ax = plt.subplots(figsize=(9, 4))
-    ax.plot(range(1, len(rewards) + 1), rewards, color=SERIES_COLORS[0], linewidth=0.8)
-    ax.set_title(f"Ex 4.1 — Récompense d'un seul GreedyPlayer (ε = {args.eps})",
-                 loc="left")
+    ax.plot(rewards, linewidth=0.8)
+    ax.set_title(f"Ex 4.1 : récompense d'un seul GreedyPlayer (ε = {args.eps})")
     ax.set_xlabel("Coup")
     ax.set_ylabel("Récompense")
     save(fig, "ex4_1_un_joueur.png")
@@ -330,10 +454,12 @@ aucune tendance.
 
 ![](figures/ex4_1_un_joueur.png)
 
-**4.2-4.4** `run_experiment` crée 2000 couples (Ban10, joueur) et les fait
-jouer **étape par étape** : les 2000 jouent leur coup 1, puis leur coup 2,
-etc. À chaque coup, nous enregistrons la récompense moyenne et le pourcentage de
-joueurs ayant choisi `best_action`.
+**4.2** `run_experiment` crée 2000 couples (`Ban10`, joueur) dans un
+tableau et les fait jouer **étape par étape** : les 2000 jouent leur coup
+1, puis leur coup 2, etc. (boucle sur `t` à l'extérieur, boucle sur les
+parties à l'intérieur).
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 def run_experiment(player_factories, ban_class, n_runs=2000, n_steps=1000):
@@ -373,39 +499,50 @@ def run_experiment(player_factories, ban_class, n_runs=2000, n_steps=1000):
     return results
 ```
 
-Les deux courbes (récompense moyenne et % de choix optimal) sont tracées
-dans deux graphiques empilés :
+**4.3** Au lieu de la récompense d'un seul joueur, nous traçons à chaque
+coup la moyenne des récompenses des 2000 joueurs (`rewards[t]` ci-dessus),
+dans le panneau du haut de `plot_results` :
+
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+            rewards[t] = reward_sum / n_runs      # (dans run_experiment)
+```
 
 ```python
 def plot_results(results, title, filename):
-    """Deux panneaux empilés : récompense moyenne et % de choix optimal.
-    Deux graphiques séparés plutôt qu'un double axe Y."""
-    fig, (ax_r, ax_o) = plt.subplots(2, 1, figsize=(9, 7.5), sharex=True)
-    end_labels = []
-    for color, (label, (rewards, optimal)) in zip(SERIES_COLORS, results.items()):
-        ax_r.plot(np.arange(1, len(rewards) + 1), rewards, color=color, label=label)
-        ax_o.plot(np.arange(1, len(optimal) + 1), optimal, color=color, label=label)
-        end_labels.append([optimal[-50:].mean(), label])
-    # étiquettes directes en bout de courbe, écartées d'au moins 4.5 points
-    # de % pour ne pas se chevaucher quand les courbes finissent proches
-    end_labels.sort()
-    for below, above in zip(end_labels, end_labels[1:]):
-        above[0] = max(above[0], below[0] + 4.5)
-    for y, label in end_labels:
-        ax_o.annotate(label, (len(optimal), y), xytext=(6, 0),
-                      textcoords="offset points", va="center",
-                      fontsize=8, color=TEXT_PRIMARY, annotation_clip=False)
+    """Trace la récompense moyenne (en haut) et le % de choix optimal (en bas)."""
+    fig, (ax_r, ax_o) = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+    for label, (rewards, optimal) in results.items():
+        ax_r.plot(rewards, label=label)
+        ax_o.plot(optimal, label=label)
+    ax_r.set_title(title)
     ax_r.set_ylabel("Récompense moyenne")
     ax_o.set_ylabel("% de choix optimal")
     ax_o.set_xlabel("Coup")
     ax_o.set_ylim(0, 100)
-    ax_r.set_title(title, loc="left", fontsize=12)
-    ax_r.legend(loc="lower right")
+    ax_r.legend()
+    ax_o.legend()
     fig.tight_layout()
     return save(fig, filename)
 ```
 
-**4.5** ε = 0, 0.01, 0.1 :
+**4.4** À chaque coup, nous comptons aussi les joueurs qui ont choisi
+`best_action` et traçons ce pourcentage dans le panneau du bas de
+`plot_results` :
+
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+                optimal_count += action == best        # (dans run_experiment)
+            optimal[t] = 100 * optimal_count / n_runs
+```
+
+**4.5** Même expérience pour ε = 0, 0.01 et 0.1, les trois courbes sur le
+même graphique de récompense moyenne et sur le même graphique de
+pourcentage d'optimalité :
+
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 def cmd_ex4(args):
@@ -413,7 +550,7 @@ def cmd_ex4(args):
     results = run_experiment(
         {f"ε = {eps}": (lambda eps=eps: GreedyPlayer(10, eps)) for eps in (0, 0.01, 0.1)},
         Ban10, args.runs, args.steps)
-    plot_results(results, f"Ex 4 — ε-greedy, moyenne sur {args.runs} problèmes",
+    plot_results(results, f"Ex 4 : ε-greedy, moyenne sur {args.runs} problèmes",
                  "ex4_epsilon_greedy.png")
 ```
 
@@ -426,6 +563,8 @@ def cmd_ex4(args):
 | 0.1 | 1.38 | 77.8 % |
 
 **4.6 Interprétation.**
+
+*Analyse et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 *Comportement initial.* Au coup 1, tous les Q valent 0 et le choix est
 aléatoire : la récompense moyenne vaut ≈ 0 et 10 % des choix sont optimaux.
@@ -446,32 +585,46 @@ exploration.
   mais son plafond théorique est de **99.1 %**. Sur un horizon assez long,
   il finirait par dépasser ε = 0.1.
 
-La récompense ne peut pas dépasser l'espérance du meilleur bras, en moyenne
-E[max de 10 N(0,1)] ≈ 1.54. C'est le compromis exploration / exploitation :
-explorer coûte à court terme mais évite de se bloquer sur un mauvais bras.
+C'est le compromis exploration / exploitation : explorer coûte à court
+terme mais évite de rester bloqué sur un mauvais bras.
 
 ## Exercice 5 : initialisation optimiste
 
-**5.1-5.2** `OptimistGreedyPlayer` hérite de `GreedyPlayer`. Son
-constructeur met Q à 5 et ε = 0 par défaut : c'est l'optimisme seul qui
-fait explorer.
+**5.1** `OptimistGreedyPlayer` dérive de `GreedyPlayer` : il hérite de
+`get_action`, `_greedy_action`, `_random_action` et `reward`.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 class OptimistGreedyPlayer(GreedyPlayer):
     """Greedy avec des estimations initiales optimistes, Q0 = 5
     (Exercice 5). Par défaut eps = 0 : c'est l'optimisme seul qui pousse
     à explorer."""
+```
 
+**5.2** Son constructeur appelle celui de `GreedyPlayer`, puis initialise
+Q à 5. Par défaut ε = 0 : c'est l'optimisme seul qui fait explorer.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    # (constructeur de OptimistGreedyPlayer)
     def __init__(self, n=10, eps=0.0, initial_value=5.0, alpha=None):
         super().__init__(n, eps, alpha)
         self.action_values = [float(initial_value)] * n
 ```
 
-**5.3** `run_experiment` (code à la question 4.2) crée **un** Ban10 par
-problème, puis donne à chaque stratégie une copie (`deepcopy`) de ce même
-Ban10. Les deux joueurs sont donc évalués sur exactement les mêmes 2000
-problèmes. La copie évite que deux joueurs fassent avancer le même objet
-(nécessaire pour le `MovingBan10` de l'exercice 7). Les lignes concernées :
+**5.3** Nous comparons `OptimistGreedyPlayer` (Q0 = 5, ε = 0) et
+`GreedyPlayer` (ε = 0.1). Comme le demande le sujet, les deux joueurs
+jouent sur le même `Ban10`. `run_experiment` (question 4.2) crée **un**
+`Ban10` par problème et donne à chaque stratégie une copie (`deepcopy`) de
+cet objet, avec les mêmes moyennes : les deux joueurs sont évalués sur
+exactement les mêmes 2000 problèmes. Nous copions l'objet au lieu de le
+partager pour que deux joueurs ne fassent pas avancer le même bandit,
+ce qui serait faux pour le `MovingBan10` de l'exercice 7. Les lignes
+concernées :
+
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
     bans = [ban_class() for _ in range(n_runs)]          # un problème par run
@@ -479,7 +632,8 @@ problèmes. La copie évite que deux joueurs fassent avancer le même objet
         games = [(copy.deepcopy(ban), make_player()) for ban in bans]
 ```
 
-Comparaison lancée par `python main.py ex5` :
+Comparaison lancée par `python main.py ex5`. Nous ajoutons une troisième
+courbe (extension) avec un pas constant α = 0.1 :
 
 ```python
 def cmd_ex5(args):
@@ -492,7 +646,7 @@ def cmd_ex5(args):
         "Optimiste ε = 0, Q0 = 5, α = 0.1":
             lambda: OptimistGreedyPlayer(10, 0.0, 5.0, alpha=0.1),
     }, Ban10, args.runs, args.steps)
-    plot_results(results, "Ex 5 — Initialisation optimiste vs ε-greedy",
+    plot_results(results, "Ex 5 : Initialisation optimiste vs ε-greedy",
                  "ex5_optimiste.png")
 ```
 
@@ -505,6 +659,8 @@ def cmd_ex5(args):
 | Optimiste ε = 0, Q0 = 5, α = 0.1 (extension) | **1.54** | **86.1 %** |
 
 **5.4 Interprétation.**
+
+*Analyse et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 *Comportement initial.* Q0 = 5 est bien au-dessus de toute récompense
 réaliste. Chaque tirage « déçoit » donc et fait baisser l'estimation du
@@ -523,26 +679,18 @@ plate. Sa récompense reste supérieure à celle d'ε-greedy (1.45 contre
 1.40) : quand il se trompe, c'est en général sur un bras proche du
 meilleur, et il ne perd pas 10 % de ses coups en hasard.
 
-Avec un pas constant α = 0.1 (le réglage de Sutton & Barto), l'optimisme
-ne s'efface que progressivement : il faut une dizaine de tirages par bras
-pour que Q descende au niveau réel. L'exploration initiale est donc bien
-plus longue, d'où un démarrage lent (≈ 250 coups). Elle est aussi plus
-fiable, et le joueur finit meilleur que tous les autres : 86 % de choix
-optimaux contre 80 % pour ε = 0.1, et la meilleure récompense (1.54).
-Limite de la méthode : elle n'explore qu'au début, ce qui la rend inadaptée
-au non-stationnaire (voir l'exercice 7).
+Avec un pas constant α = 0.1, Q0 = 5 s'efface plus lentement : chaque bras
+est essayé plusieurs fois avant que son estimation descende. Le démarrage
+est plus lent, mais le joueur finit meilleur : 86 % de choix optimaux
+contre 80 % pour ε = 0.1. Limite de la méthode : elle n'explore qu'au
+début, ce qui risque de poser problème en non-stationnaire (exercice 7).
 
 ## Exercice 6 : sélection Upper-Confidence-Bound
 
-**6.1-6.2** `UCBGreedyPlayer(n, c)` surcharge `_greedy_action` :
+**6.1** `UCBGreedyPlayer` dérive de `GreedyPlayer` et prend un argument
+supplémentaire `c` (degré d'exploration), stocké dans l'attribut `self.c`.
 
-```
-A_t = argmax_a [ Q(a) + c * sqrt( ln t / N(a) ) ]
-```
-
-`t` est le nombre d'appels à `reward` (`self.steps`). Une action jamais
-essayée (N(a) = 0) est considérée comme maximisante : elle est choisie en
-priorité. Nous prenons c = 2 et ε = 0.
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 class UCBGreedyPlayer(GreedyPlayer):
@@ -556,7 +704,24 @@ class UCBGreedyPlayer(GreedyPlayer):
     def __init__(self, n=10, c=2.0, eps=0.0, alpha=None):
         super().__init__(n, eps, alpha)
         self.c = c
+```
 
+**6.2** `_greedy_action` est surchargée pour appliquer la formule du cours :
+
+```
+A_t = argmax_a [ Q(a) + c * sqrt( ln t / N(a) ) ]
+```
+
+`t` est le nombre d'appels à `reward` (`self.steps`, incrémenté dans
+`reward`, question 3.8). Une action jamais essayée (N(a) = 0) est
+considérée comme maximisante : elle est choisie en priorité. Nous prenons
+c = 2 et ε = 0. Seule `_greedy_action` est redéfinie : `get_action` et
+`reward` sont hérités de `GreedyPlayer`.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+```python
+    # (méthode de UCBGreedyPlayer)
     def _greedy_action(self):
         untried = [i for i, count in enumerate(self.eval_count) if count == 0]
         if untried:
@@ -567,10 +732,9 @@ class UCBGreedyPlayer(GreedyPlayer):
         return self._argmax(scores)
 ```
 
-Seule `_greedy_action` est redéfinie : `get_action` et `reward` sont
-hérités de `GreedyPlayer`.
+**6.3** Comparaison avec `GreedyPlayer` ε = 0.1 (`python main.py ex6`) :
 
-**6.3** Comparaison avec ε-greedy (`python main.py ex6`) :
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 def cmd_ex6(args):
@@ -579,7 +743,7 @@ def cmd_ex6(args):
         "ε-greedy ε = 0.1": lambda: GreedyPlayer(10, 0.1),
         f"UCB c = {args.c}": lambda: UCBGreedyPlayer(10, args.c),
     }, Ban10, args.runs, args.steps)
-    plot_results(results, "Ex 6 — UCB vs ε-greedy", "ex6_ucb.png")
+    plot_results(results, "Ex 6 : UCB vs ε-greedy", "ex6_ucb.png")
 ```
 
 ![](figures/ex6_ucb.png)
@@ -591,34 +755,34 @@ def cmd_ex6(args):
 
 **6.4 Interprétation.**
 
-*Comportement initial.* Pendant les 10 premiers coups, UCB essaie chaque
-bras une fois : la récompense est ≈ 0. Au **coup 11**, la courbe fait un
-pic net (≈ 42 % de choix optimaux). À ce moment tous les N valent 1, donc
-le bonus est le même pour tous les bras, et UCB choisit simplement le bras
-dont le premier tirage était le meilleur, souvent le bon. Au coup 12, ce
-bras a N = 2 et donc un bonus plus faible que les autres : UCB repart
-explorer et la courbe redescend. Comme les 2000 joueurs suivent ce même
-calendrier, le pic est visible sur la moyenne. Ensuite, UCB est légèrement
-au-dessus d'ε-greedy.
+*Analyse et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
-*Comportement asymptotique.* UCB est nettement meilleur (1.49 contre 1.37).
-Son exploration est **dirigée** : il ne réessaie que les bras encore
-incertains (N petit) ou prometteurs (Q élevé). ε-greedy, lui, continue de
-jouer des bras clairement mauvais 10 % du temps. De plus, le bonus
-`sqrt(ln t / N)` diminue à mesure que N augmente : UCB explore de moins en
-moins, et n'est pas bloqué par un plafond comme le 91 % d'ε = 0.1.
-Contreparties : c doit être réglé, et la méthode se généralise mal
-au-delà des bandits (grands espaces d'états, non-stationnarité).
+*Comportement initial.* Pendant les 10 premiers coups, UCB essaie chaque
+bras une fois (un bras jamais joué est prioritaire) : la récompense reste
+≈ 0. Juste après, vers le coup 11, la courbe fait un pic : tous les bras
+ont été joués une fois, donc UCB choisit celui qui a donné le meilleur
+premier tirage, souvent le bon. Ensuite, le bonus de ce bras baisse et UCB
+repart explorer les autres, d'où la redescente. Après quelques dizaines de
+coups, UCB passe au-dessus d'ε-greedy.
+
+*Comportement asymptotique.* UCB est meilleur (1.49 contre 1.37). Il
+n'explore pas au hasard : il revient surtout sur les bras peu essayés ou
+prometteurs, alors qu'ε-greedy continue de jouer des bras mauvais 10 % du
+temps. Et comme le bonus diminue quand N augmente, UCB explore de moins en
+moins. Inconvénient : il faut choisir la valeur de c.
 
 ## Exercice 7 (bonus) : problèmes non-stationnaires
 
-**7.1** `MovingBandit` : `avg(t) = centre + amplitude · sin(2π t / période + phase)`.
+**7.1** `MovingBandit` dérive de `Bandit`. Sa moyenne oscille selon
+`avg(t) = centre + amplitude · sin(2π t / période + phase)` :
 - min et max sont deux tirages N(0, 1), triés : ils donnent le centre et
   l'amplitude ;
 - la période est tirée uniformément entre 100 et 500 coups ;
 - la phase est aléatoire, pour que les bras ne partent pas tous du même
   point du sinus ;
-- `avg` est mis à jour à chaque `play()`.
+- `avg` est mis à jour à chaque appel de `play()`.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 class MovingBandit(Bandit):
@@ -650,13 +814,16 @@ class MovingBandit(Bandit):
         return reward
 ```
 
-**7.2** `MovingBan10` instancie des `MovingBandit`. Choix de conception :
-à chaque coup, **tous** les bras avancent d'un pas (le bras joué via
+**7.2** `MovingBan10` dérive de `Ban10` et instancie des `MovingBandit` à
+la place des `Bandit` (attribut `bandit_class`). Choix de conception : à
+chaque coup, **tous** les bras avancent d'un pas (le bras joué via
 `play`, les autres via `step`). Si seul le bras joué bougeait, un bras
 délaissé resterait figé. La vraie difficulté disparaîtrait alors : un bras
 ignoré qui devient le meilleur sans que l'agent le voie. `best_action` est
 recalculé après chaque coup. Le « choix optimal » est jugé par rapport au
 meilleur bras **au moment du coup**.
+
+*Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 class MovingBan10(Ban10):
@@ -681,13 +848,15 @@ class MovingBan10(Ban10):
 
 **7.3** Différentes valeurs de ε :
 
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
 ```python
 # début de cmd_ex7 (main.py)
-    print(" 7.3 — différentes valeurs de ε (moyenne empirique)")
+    print(" 7.3 : différentes valeurs de ε (moyenne empirique)")
     results = run_experiment(
         {f"ε = {eps}": (lambda eps=eps: GreedyPlayer(10, eps)) for eps in (0, 0.01, 0.1, 0.2)},
         MovingBan10, args.runs, args.steps)
-    plot_results(results, "Ex 7.3 — MovingBan10, ε-greedy", "ex7_3_epsilon.png")
+    plot_results(results, "Ex 7.3 : MovingBan10, ε-greedy", "ex7_3_epsilon.png")
 ```
 
 ![](figures/ex7_3_epsilon.png)
@@ -708,15 +877,17 @@ que 0.1.
 
 **7.4** Optimiste et UCB (moyenne empirique) :
 
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
 ```python
 # suite de cmd_ex7 (main.py)
-    print(" 7.4 — optimiste et UCB (moyenne empirique)")
+    print(" 7.4 : optimiste et UCB (moyenne empirique)")
     results = run_experiment({
         "ε-greedy ε = 0.1": lambda: GreedyPlayer(10, 0.1),
         "Optimiste Q0 = 5": lambda: OptimistGreedyPlayer(10, 0.0, 5.0),
         f"UCB c = {args.c}": lambda: UCBGreedyPlayer(10, args.c),
     }, MovingBan10, args.runs, args.steps)
-    plot_results(results, "Ex 7.4 — MovingBan10, optimiste et UCB",
+    plot_results(results, "Ex 7.4 : MovingBan10, optimiste et UCB",
                  "ex7_4_optimiste_ucb.png")
 ```
 
@@ -741,16 +912,18 @@ que 0.1.
 recommande un pas constant, qui pondère davantage les récompenses
 récentes (paramètre `alpha` de `GreedyPlayer.reward`, question 3.8) :
 
+*Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
 ```python
 # fin de cmd_ex7 (main.py)
-    print(" 7 (extension) — pas constant α = 0.1 au lieu de la moyenne empirique")
+    print(" 7 (extension) : pas constant α = 0.1 au lieu de la moyenne empirique")
     results = run_experiment({
         "ε = 0.1, moyenne empirique": lambda: GreedyPlayer(10, 0.1),
         "ε = 0.1, α = 0.1": lambda: GreedyPlayer(10, 0.1, alpha=0.1),
         "Optimiste Q0 = 5, α = 0.1": lambda: OptimistGreedyPlayer(10, 0.0, 5.0, alpha=0.1),
         f"UCB c = {args.c}, α = 0.1": lambda: UCBGreedyPlayer(10, args.c, alpha=0.1),
     }, MovingBan10, args.runs, args.steps)
-    plot_results(results, "Ex 7 — MovingBan10, pas constant α = 0.1",
+    plot_results(results, "Ex 7 : MovingBan10, pas constant α = 0.1",
                  "ex7_alpha_constant.png")
 ```
 
@@ -763,26 +936,48 @@ récentes (paramètre `alpha` de `GreedyPlayer.reward`, question 3.8) :
 | Optimiste Q0 = 5, α = 0.1 | **1.01** | 47.6 % |
 | UCB c = 2, α = 0.1 | 0.95 | 43.3 % |
 
-Le gain est faible, voire négatif, ce qui surprend à première vue. Voici nos
-hypothèses pour l'expliquer :
-- **Pour ε-greedy, le facteur limitant est la fréquence d'exploration, pas
-  la façon de faire la moyenne.** Avec ε = 0.1, chaque bras non-greedy est
-  tiré environ 1 % du temps, soit à peu près un tirage tous les 100 coups.
-  C'est l'ordre de grandeur de la période du sinus : l'estimation est
-  périmée, quelle que soit la façon de la moyenner. Un α constant rend
-  aussi les estimations plus bruitées (≈ 10 derniers tirages seulement).
-- **L'optimiste** profite d'α : sa longue exploration initiale (voir
-  l'exercice 5) lui donne de meilleures estimations au départ.
-- **UCB avec α est moins bon.** Le bonus repose sur N(a), le nombre total de
-  tirages, alors que Q ne « se souvient » que des ~10 derniers. Le bonus
-  sous-estime donc l'incertitude réelle de l'estimation. Nous observons aussi un
-  creux marqué vers le coup 20 : après un seul tirage, Q = 0.1·r est
-  presque nul. Le bonus domine alors, et les 2000 joueurs parcourent les
-  bras dans le même ordre de manière synchronisée.
+Le gain est faible, voire négatif, ce qui nous a surpris. Nos hypothèses :
+- **ε-greedy** : avec ε = 0.1, chaque bras non choisi n'est rejoué qu'à
+  peu près une fois tous les 100 coups. Son estimation est donc vite
+  dépassée, quelle que soit la façon de faire la moyenne.
+- **L'optimiste** profite un peu d'α, grâce à son exploration plus longue
+  au départ (comme à l'exercice 5).
+- **UCB** fait moins bien avec α : son bonus dépend du nombre total de
+  tirages N, alors qu'avec α, Q ne tient compte que des derniers tirages.
+  Le bonus ne correspond donc plus vraiment à l'incertitude de Q.
 
-Pour vraiment tirer parti d'α en non-stationnaire, il faudrait l'associer à
-une exploration qui ne s'éteint pas avec le temps, par exemple UCB avec des
-compteurs N « oubliés » (*discounted UCB*).
+---
+
+## Conclusion
+
+*Rédaction : Moïse, Gédéon et Jonas, ensemble.*
+
+Récapitulatif des stratégies (moyenne sur les 100 derniers coups, 2000
+problèmes). Les chiffres viennent d'expériences différentes (exercices 4 à
+7) : à 2-3 points près (voir « Précision des chiffres »), ils sont
+comparables d'une ligne à l'autre.
+
+| Stratégie | Stationnaire : récompense | Stationnaire : % optimal | Non-stationnaire : récompense | Non-stationnaire : % optimal |
+|---|---|---|---|---|
+| ε-greedy ε = 0 | 1.03 | 35.5 % | 0.77 | 30.0 % |
+| ε-greedy ε = 0.1 | 1.38 | 77.8 % | 0.94 | 47.9 % |
+| Optimiste Q0 = 5 | 1.45 | 69.5 % | 0.95 | 43.9 % |
+| Optimiste Q0 = 5, α = 0.1 | **1.54** | **86.1 %** | 1.01 | 47.6 % |
+| UCB c = 2 | 1.49 | 85.1 % | **1.10** | **59.0 %** |
+
+Ce que nous retenons :
+
+- **Explorer est indispensable.** Le greedy pur (ε = 0) se fige sur un bras
+  souvent mauvais et finit dernier dans les deux cas.
+- **La façon d'explorer compte plus que la quantité.** ε-greedy explore au
+  hasard et reste plafonné. L'initialisation optimiste explore tout au
+  début, très efficacement, mais plus ensuite. UCB dirige son exploration
+  vers les bras incertains.
+- **En stationnaire**, l'optimiste avec α = 0.1 et UCB sont les meilleurs
+  et au coude à coude.
+- **En non-stationnaire**, UCB est nettement le plus robuste, car son bonus
+  le ramène vers les bras délaissés. Les méthodes qui n'explorent qu'au
+  début perdent leur avance quand les bras bougent.
 
 ---
 

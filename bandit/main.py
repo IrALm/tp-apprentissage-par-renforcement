@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from bandit import Ban10, Bandit, MovingBan10
-from experiments import SERIES_COLORS, plot_results, run_experiment, save
+from experiments import plot_results, run_experiment, save
 from players import GreedyPlayer, OptimistGreedyPlayer, UCBGreedyPlayer
 
 
@@ -31,25 +31,23 @@ def cmd_ex1(args):
     bins = np.linspace(-5, 5, 41)
     fig, ax = plt.subplots(figsize=(8, 4))
     bandit = Bandit()
-    ax.hist([bandit.play() for _ in range(1000)], bins=bins,
-            color=SERIES_COLORS[0], edgecolor="#fcfcfb", linewidth=1)
-    ax.axvline(bandit.avg, color="#0b0b0b", linewidth=1, linestyle="--")
-    ax.set_title(f"Ex 1.3 — 1000 tirages d'un Bandit (avg = {bandit.avg:.2f})",
-                 loc="left")
+    ax.hist([bandit.play() for _ in range(1000)], bins=bins, edgecolor="white")
+    ax.axvline(bandit.avg, color="black", linestyle="--")
+    ax.set_title(f"Ex 1.3 : 1000 tirages d'un Bandit (avg = {bandit.avg:.2f})")
     ax.set_xlabel("Récompense")
     ax.set_ylabel("Effectif")
     save(fig, "ex1_3_un_bandit.png")
     print(f"  Bandit : avg = {bandit.avg:.3f}")
 
     fig, ax = plt.subplots(figsize=(8, 4))
-    for i, color in enumerate(SERIES_COLORS[:3]):
+    for i in range(3):
         b = Bandit()
         samples = [b.play() for _ in range(1000)]
-        ax.hist(samples, bins=bins, color=color, alpha=0.55,
+        ax.hist(samples, bins=bins, color=f"C{i}", alpha=0.5,
                 label=f"Bandit {i} (avg = {b.avg:.2f})")
-        ax.axvline(b.avg, color=color, linewidth=1.5, linestyle="--")
+        ax.axvline(b.avg, color=f"C{i}", linestyle="--")
         print(f"  Bandit {i} : avg = {b.avg:.3f}, moyenne empirique = {np.mean(samples):.3f}")
-    ax.set_title("Ex 1.4 — 1000 tirages de 3 Bandit", loc="left")
+    ax.set_title("Ex 1.4 : 1000 tirages de 3 Bandit")
     ax.set_xlabel("Récompense")
     ax.set_ylabel("Effectif")
     ax.legend()
@@ -90,9 +88,8 @@ def cmd_ex3(args):
     print(f"  Vrais avg : {[round(b.avg, 2) for b in ban.bandits]}")
 
     fig, ax = plt.subplots(figsize=(9, 4))
-    ax.plot(range(1, len(rewards) + 1), rewards, color=SERIES_COLORS[0], linewidth=0.8)
-    ax.set_title(f"Ex 4.1 — Récompense d'un seul GreedyPlayer (ε = {args.eps})",
-                 loc="left")
+    ax.plot(rewards, linewidth=0.8)
+    ax.set_title(f"Ex 4.1 : récompense d'un seul GreedyPlayer (ε = {args.eps})")
     ax.set_xlabel("Coup")
     ax.set_ylabel("Récompense")
     save(fig, "ex4_1_un_joueur.png")
@@ -103,7 +100,7 @@ def cmd_ex4(args):
     results = run_experiment(
         {f"ε = {eps}": (lambda eps=eps: GreedyPlayer(10, eps)) for eps in (0, 0.01, 0.1)},
         Ban10, args.runs, args.steps)
-    plot_results(results, f"Ex 4 — ε-greedy, moyenne sur {args.runs} problèmes",
+    plot_results(results, f"Ex 4 : ε-greedy, moyenne sur {args.runs} problèmes",
                  "ex4_epsilon_greedy.png")
 
 
@@ -117,7 +114,7 @@ def cmd_ex5(args):
         "Optimiste ε = 0, Q0 = 5, α = 0.1":
             lambda: OptimistGreedyPlayer(10, 0.0, 5.0, alpha=0.1),
     }, Ban10, args.runs, args.steps)
-    plot_results(results, "Ex 5 — Initialisation optimiste vs ε-greedy",
+    plot_results(results, "Ex 5 : Initialisation optimiste vs ε-greedy",
                  "ex5_optimiste.png")
 
 
@@ -127,34 +124,34 @@ def cmd_ex6(args):
         "ε-greedy ε = 0.1": lambda: GreedyPlayer(10, 0.1),
         f"UCB c = {args.c}": lambda: UCBGreedyPlayer(10, args.c),
     }, Ban10, args.runs, args.steps)
-    plot_results(results, "Ex 6 — UCB vs ε-greedy", "ex6_ucb.png")
+    plot_results(results, "Ex 6 : UCB vs ε-greedy", "ex6_ucb.png")
 
 
 def cmd_ex7(args):
     """Exercice 7 (bonus) : bandits non-stationnaires."""
-    print(" 7.3 — différentes valeurs de ε (moyenne empirique)")
+    print(" 7.3 : différentes valeurs de ε (moyenne empirique)")
     results = run_experiment(
         {f"ε = {eps}": (lambda eps=eps: GreedyPlayer(10, eps)) for eps in (0, 0.01, 0.1, 0.2)},
         MovingBan10, args.runs, args.steps)
-    plot_results(results, "Ex 7.3 — MovingBan10, ε-greedy", "ex7_3_epsilon.png")
+    plot_results(results, "Ex 7.3 : MovingBan10, ε-greedy", "ex7_3_epsilon.png")
 
-    print(" 7.4 — optimiste et UCB (moyenne empirique)")
+    print(" 7.4 : optimiste et UCB (moyenne empirique)")
     results = run_experiment({
         "ε-greedy ε = 0.1": lambda: GreedyPlayer(10, 0.1),
         "Optimiste Q0 = 5": lambda: OptimistGreedyPlayer(10, 0.0, 5.0),
         f"UCB c = {args.c}": lambda: UCBGreedyPlayer(10, args.c),
     }, MovingBan10, args.runs, args.steps)
-    plot_results(results, "Ex 7.4 — MovingBan10, optimiste et UCB",
+    plot_results(results, "Ex 7.4 : MovingBan10, optimiste et UCB",
                  "ex7_4_optimiste_ucb.png")
 
-    print(" 7 (extension) — pas constant α = 0.1 au lieu de la moyenne empirique")
+    print(" 7 (extension) : pas constant α = 0.1 au lieu de la moyenne empirique")
     results = run_experiment({
         "ε = 0.1, moyenne empirique": lambda: GreedyPlayer(10, 0.1),
         "ε = 0.1, α = 0.1": lambda: GreedyPlayer(10, 0.1, alpha=0.1),
         "Optimiste Q0 = 5, α = 0.1": lambda: OptimistGreedyPlayer(10, 0.0, 5.0, alpha=0.1),
         f"UCB c = {args.c}, α = 0.1": lambda: UCBGreedyPlayer(10, args.c, alpha=0.1),
     }, MovingBan10, args.runs, args.steps)
-    plot_results(results, "Ex 7 — MovingBan10, pas constant α = 0.1",
+    plot_results(results, "Ex 7 : MovingBan10, pas constant α = 0.1",
                  "ex7_alpha_constant.png")
 
 

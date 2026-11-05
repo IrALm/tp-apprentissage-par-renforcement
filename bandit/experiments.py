@@ -9,33 +9,6 @@ import numpy as np
 
 FIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
 
-# Ordre fixe des couleurs de série (jamais recyclé) + encres neutres.
-SERIES_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100",
-                 "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
-TEXT_PRIMARY = "#0b0b0b"
-TEXT_SECONDARY = "#52514e"
-GRID = "#e4e3df"
-
-plt.rcParams.update({
-    "figure.facecolor": "#fcfcfb",
-    "axes.facecolor": "#fcfcfb",
-    "axes.edgecolor": GRID,
-    "axes.labelcolor": TEXT_SECONDARY,
-    "axes.titlecolor": TEXT_PRIMARY,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "axes.grid": True,
-    "grid.color": GRID,
-    "grid.linewidth": 0.8,
-    "xtick.color": TEXT_SECONDARY,
-    "ytick.color": TEXT_SECONDARY,
-    "legend.frameon": False,
-    "legend.labelcolor": TEXT_PRIMARY,
-    "lines.linewidth": 1.5,
-    "font.size": 10,
-})
-
-
 def save(fig, name):
     os.makedirs(FIG_DIR, exist_ok=True)
     path = os.path.join(FIG_DIR, name)
@@ -83,28 +56,17 @@ def run_experiment(player_factories, ban_class, n_runs=2000, n_steps=1000):
 
 
 def plot_results(results, title, filename):
-    """Deux panneaux empilés : récompense moyenne et % de choix optimal.
-    Deux graphiques séparés plutôt qu'un double axe Y."""
-    fig, (ax_r, ax_o) = plt.subplots(2, 1, figsize=(9, 7.5), sharex=True)
-    end_labels = []
-    for color, (label, (rewards, optimal)) in zip(SERIES_COLORS, results.items()):
-        ax_r.plot(np.arange(1, len(rewards) + 1), rewards, color=color, label=label)
-        ax_o.plot(np.arange(1, len(optimal) + 1), optimal, color=color, label=label)
-        end_labels.append([optimal[-50:].mean(), label])
-    # étiquettes directes en bout de courbe, écartées d'au moins 4.5 points
-    # de % pour ne pas se chevaucher quand les courbes finissent proches
-    end_labels.sort()
-    for below, above in zip(end_labels, end_labels[1:]):
-        above[0] = max(above[0], below[0] + 4.5)
-    for y, label in end_labels:
-        ax_o.annotate(label, (len(optimal), y), xytext=(6, 0),
-                      textcoords="offset points", va="center",
-                      fontsize=8, color=TEXT_PRIMARY, annotation_clip=False)
+    """Trace la récompense moyenne (en haut) et le % de choix optimal (en bas)."""
+    fig, (ax_r, ax_o) = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+    for label, (rewards, optimal) in results.items():
+        ax_r.plot(rewards, label=label)
+        ax_o.plot(optimal, label=label)
+    ax_r.set_title(title)
     ax_r.set_ylabel("Récompense moyenne")
     ax_o.set_ylabel("% de choix optimal")
     ax_o.set_xlabel("Coup")
     ax_o.set_ylim(0, 100)
-    ax_r.set_title(title, loc="left", fontsize=12)
-    ax_r.legend(loc="lower right")
+    ax_r.legend()
+    ax_o.legend()
     fig.tight_layout()
     return save(fig, filename)
