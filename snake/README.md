@@ -51,9 +51,10 @@ from experiments import gamma_search, plot_curves, run, save
 ## Reproduire les résultats
 
 ```bash
-python main.py all          # tous les exercices (~6 min), graine 42
-python main.py ex3          # un exercice seul
-python main.py ex3 --size 10          # options : --size --gamma --seed
+python main.py all          # tous les exercices (~8 min), graine 42
+python main.py ex3          # un exercice seul (grille 4 x 4)
+python main.py ex3_10x10    # les essais sur la grille 10 x 10 (question 3.10)
+python main.py ex3 --size 5           # options : --size --gamma --seed
 ```
 
 Tous les chiffres ci-dessous viennent de `python main.py all` (graine 42).
@@ -344,8 +345,11 @@ donc il y a 8 états E possibles, chacun avec une probabilité 1/8.
 
 ![](figures/ex2_7_mdp.png)
 
-Pour ne pas nous tromper, les transitions du schéma sont calculées avec le
-vrai jeu (`restore_state` puis `move`, voir 3.1-3.2) :
+Pour dessiner le schéma, nous n'avons pas calculé les flèches à la main :
+nous plaçons le serpent dans chaque état avec `restore_state` (question
+3.2), nous jouons l'action avec `move`, et nous regardons où il arrive et
+la récompense obtenue. Les flèches du dessin viennent donc directement de
+notre jeu :
 
 ```python
     fruit = (0, 2)
@@ -524,54 +528,129 @@ def run(gamma, n_runs, n_steps, size=4, length=1, eps=0.1, alpha=0.5):
     return rewards / n_runs, per_run / n_steps
 ```
 
-**3.10** *Choix de la grille.* Nous avons d'abord essayé une grille 10 × 10.
-Avec 39 600 états, l'agent ne revoit presque jamais deux fois le même
-état en 1000 ou même 10 000 étapes, et il n'apprend rien de visible. Il
-faut environ 200 000 étapes pour que la récompense moyenne devienne
-positive (`python main.py grille10`, moyenne de 5 parties) :
-
-| Étapes | 0-40 000 | 40 000-80 000 | 80 000-120 000 | 120 000-160 000 | 160 000-200 000 |
-|---|---|---|---|---|---|
-| Récompense moyenne | −0.73 | −0.49 | −0.30 | −0.12 | +0.03 |
-
-Pour pouvoir comparer des réglages en 1000 et 10 000 étapes, comme le
-demande le sujet, nous faisons donc toutes les expériences sur une grille
-**4 × 4** (960 états).
-
-*Évolution de la récompense sur une partie de 1000 étapes* (γ = 0.5). En
-haut, la récompense de chaque étape ; en bas, le score cumulé :
+**3.10** Le programme principal fait jouer l'agent pendant 1000 étapes,
+puis trace la récompense de chaque étape (en haut) et le score cumulé (en
+bas). Comme la question 2.2 parle d'une grille 10 × 10, nous avons commencé
+par celle-là.
 
 *Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
-    game = ShortSnake(size)
-    player = GreedyPlayer(game, gamma=0.5)
+def play(game, player, n_steps):
+    """Fait jouer le joueur n_steps étapes et renvoie la liste des récompenses."""
     rewards = []
-    for t in range(1000):
+    for t in range(n_steps):
         action = player.get_action()
         reward = game.move(action)
         player.reward(action, reward)
         rewards.append(reward)
-    print(f"  score final = {game.score}")
+    return rewards
+
+
+def plot_one_game(rewards, title, filename):
+    """Récompense de chaque étape (en haut) et score cumulé (en bas)."""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
     ax1.plot(rewards, ".", markersize=3)
     ax1.set_ylabel("Récompense")
-    ax1.set_title(f"Ex 3.10 : une partie, grille {size} x {size}, gamma = 0.5")
+    ax1.set_title(title)
     ax2.plot(np.cumsum(rewards))
     ax2.set_ylabel("Score cumulé")
     ax2.set_xlabel("Étape")
     for ax in (ax1, ax2):
         ax.grid(alpha=0.3)
     fig.tight_layout()
-    save(fig, "ex3_10_une_partie.png")
+    save(fig, filename)
+```
+
+***Grille 10 × 10*** (`python main.py ex3_10x10`) :
+
+```python
+def cmd_ex3_10x10(args):
+    """Exercice 3 sur la grille 10 x 10 de la question 2.2."""
+    print(" une partie de 1000 étapes (gamma = 0.5)")
+    game = ShortSnake(10)
+    rewards = play(game, GreedyPlayer(game, gamma=0.5), 1000)
+    print(f"  score final = {game.score}")
+    plot_one_game(rewards, "Grille 10 x 10 : une partie, gamma = 0.5",
+                  "ex3_10x10_une_partie.png")
+
+    for n_steps, n_runs, window in [(1000, 500, 20), (10000, 100, 200)]:
+        print(f" différents gamma, {n_steps} étapes, {n_runs} parties")
+        curves = {}
+        for g in GAMMAS:
+            curve, per_run = run(g, n_runs, n_steps, size=10)
+            curves[f"gamma = {g}"] = curve
+            print(f"  gamma = {g} : récompense moyenne = {per_run.mean():+.3f}")
+        plot_curves(curves, f"Grille 10 x 10 : facteur d'actualisation, {n_steps} étapes",
+                    f"ex3_10x10_gamma_{n_steps}.png", window=window)
+
+    print(" entraînement long : 200000 étapes, 5 parties (gamma = 0.5)")
+    curve, _ = run(0.5, 5, 200000, size=10)
+    for start in range(0, 200000, 40000):
+        print(f"  étapes {start:6d} à {start + 40000:6d} : récompense moyenne = "
+              f"{curve[start:start + 40000].mean():+.3f}")
+    plot_curves({"grille 10 x 10": curve}, "Grille 10 x 10 : 200000 étapes, gamma = 0.5",
+                "ex3_10x10_200000.png", window=5000)
+```
+
+![](figures/ex3_10x10_une_partie.png)
+
+Sur une partie de 1000 étapes, le score finit à −810 et ne fait que
+descendre : le serpent passe régulièrement par les bords et mange peu de
+fruits. Pour voir si l'agent apprend quand même un peu, nous avons fait la
+moyenne sur plusieurs parties (fonction `run`, question 3.9 ; le nombre de
+parties est choisi à la question 3.11) avec les cinq valeurs de γ de la
+question 3.12 :
+
+![](figures/ex3_10x10_gamma_1000.png)
+
+![](figures/ex3_10x10_gamma_10000.png)
+
+| γ | 0 | 0.1 | 0.5 | 0.9 | 1 |
+|---|---|---|---|---|---|
+| 1000 étapes (500 parties) | −0.82 | −0.83 | −0.83 | −0.84 | −0.83 |
+| 10 000 étapes (100 parties) | −0.81 | −0.82 | −0.81 | −0.81 | −0.80 |
+
+Les courbes sont plates et confondues, même après 10 000 étapes : l'agent
+n'apprend rien de visible, et nous ne pouvons rien dire sur γ. Nous avons
+alors laissé tourner des parties beaucoup plus longues :
+
+![](figures/ex3_10x10_200000.png)
+
+| Étapes | 0-40 000 | 40 000-80 000 | 80 000-120 000 | 120 000-160 000 | 160 000-200 000 |
+|---|---|---|---|---|---|
+| Récompense moyenne | −0.72 | −0.49 | −0.28 | −0.12 | +0.04 |
+
+L'agent apprend bien, mais très lentement : il faut environ 200 000 étapes
+pour que la récompense moyenne devienne positive.
+
+***Pourquoi nous passons à une grille 4 × 4.*** Le problème vient du nombre
+d'états. Sur 10 × 10, il y a 39 600 états (question 2.2) et 3 actions dans
+chacun, donc près de 120 000 valeurs Q à apprendre. En 10 000 étapes,
+l'agent passe au mieux une fois dans un état sur quatre, et une valeur Q
+ne s'améliore que quand l'agent repasse dans le même état. Sur une grille
+4 × 4, il n'y a que 960 états : l'agent repasse souvent par les mêmes états
+et apprend en quelques milliers d'étapes. Comme le sujet demande de
+comparer les valeurs de γ sur 1000 et 10 000 étapes, nous faisons toutes
+les expériences suivantes sur une grille **4 × 4**.
+
+***Grille 4 × 4*** (`python main.py ex3`) :
+
+```python
+    game = ShortSnake(size)
+    rewards = play(game, GreedyPlayer(game, gamma=0.5), 1000)
+    print(f"  score final = {game.score}")
+    plot_one_game(rewards, f"Ex 3.10 : une partie, grille {size} x {size}, gamma = 0.5",
+                  "ex3_10_une_partie.png")
 ```
 
 ![](figures/ex3_10_une_partie.png)
 
 La récompense ne prend que trois valeurs (−10, 0, +10) et nous ne voyons pas
-de tendance sur une seule partie. Le score final est de −1560 : sur une
+de tendance sur une seule partie. Le score final est de −1000 : sur une
 grille 4 × 4, le serpent passe très souvent par un bord, et l'agent n'a pas
-encore appris à l'éviter en 1000 étapes.
+encore appris à l'éviter en 1000 étapes. La moyenne sur plusieurs parties
+(question 3.11) montre en revanche qu'il progresse.
 
 **3.11** Pour lisser le bruit, nous faisons la moyenne de la récompense à
 chaque étape sur plusieurs parties indépendantes (fonction `run`). Pour
@@ -594,7 +673,7 @@ parties, en mesurant l'écart-type de la courbe sur les 100 dernières
 
 | Parties | 10 | 100 | 500 | 2000 |
 |---|---|---|---|---|
-| Écart-type de la courbe | 1.54 | 0.50 | 0.24 | 0.11 |
+| Écart-type de la courbe | 1.81 | 0.53 | 0.23 | 0.12 |
 
 ![](figures/ex3_11_nb_parties.png)
 
@@ -648,22 +727,27 @@ GAMMAS = [0, 0.1, 0.5, 0.9, 1]
 ![](figures/ex3_12_gamma_1000.png)
 
 Sur 1000 étapes, les courbes sont presque confondues. Seul γ = 0 est un peu
-en dessous à la fin. La meilleure valeur n'est pas claire : toutes les
+en dessous à la fin. (Sur la grille 10 × 10, les cinq courbes étaient
+complètement confondues, voir 3.10.) La meilleure valeur n'est pas claire : toutes les
 valeurs γ > 0 se valent (voir les chiffres de 3.13). γ = 0 est un peu moins
 bon, car l'agent n'apprend que la récompense immédiate : il évite le bord
 quand il est juste devant, et mange le fruit quand il est juste à côté,
 mais il ne sait pas aller vers un fruit plus loin.
 
-**3.13** Recherche de la meilleure valeur : γ de 0 à 1 par pas de 0.1,
-récompense moyenne par étape sur toute la partie, avec une marge d'erreur
-de 2 écarts-types de la moyenne :
+**3.13** Recherche de la meilleure valeur : nous essayons γ de 0 à 1 par
+pas de 0.1, et nous mesurons la récompense moyenne par étape sur toute la
+partie. Comme les résultats varient d'une partie à l'autre, deux valeurs
+proches ne sont pas forcément vraiment différentes. Nous calculons donc
+aussi une marge d'erreur : l'écart-type des parties, divisé par la racine
+du nombre de parties, multiplié par 2. Si deux résultats sont plus proches
+que cette marge, la différence peut venir du hasard.
 
 *Code, graphique et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
 ```python
 def gamma_search(gammas, n_runs, n_steps, size=4, length=1):
     """Récompense moyenne par étape pour chaque gamma, avec une marge
-    d'erreur de 2 écarts-types de la moyenne."""
+    d'erreur (2 x écart-type / racine du nombre de parties)."""
     means, errors = [], []
     for gamma in gammas:
         _, per_run = run(gamma, n_runs, n_steps, size, length)
@@ -678,16 +762,16 @@ def gamma_search(gammas, n_runs, n_steps, size=4, length=1):
 
 | γ | 0 | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 0.6 | 0.7 | 0.8 | 0.9 | 1 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 1000 étapes | −1.189 | −1.161 | −1.156 | −1.152 | **−1.146** | −1.164 | −1.162 | −1.167 | −1.158 | −1.157 | −1.172 |
-| 10 000 étapes | +0.584 | +1.289 | **+1.292** | +1.290 | +1.283 | +1.287 | +1.290 | +1.285 | +1.285 | +1.248 | +1.244 |
+| 1000 étapes | −1.187 | −1.148 | −1.157 | −1.160 | −1.165 | **−1.138** | −1.152 | −1.157 | −1.157 | −1.154 | −1.166 |
+| 10 000 étapes | +0.580 | +1.299 | +1.297 | +1.299 | +1.293 | **+1.301** | +1.295 | +1.277 | +1.276 | +1.266 | +1.248 |
 
 La marge d'erreur est d'environ ±0.014 dans les deux cas.
 
 ![](figures/ex3_13_recherche_gamma.png)
 
-Sur 1000 étapes, la meilleure valeur mesurée est γ = 0.4 (−1.146), mais
-toutes les valeurs de 0.1 à 1 sont à moins de 2 marges d'erreur les unes
-des autres : nous ne pouvons pas les départager. Seul γ = 0 est
+Sur 1000 étapes, la meilleure valeur mesurée est γ = 0.5 (−1.138), mais
+toutes les valeurs de 0.1 à 1 sont très proches les unes des autres (à
+environ 2 marges d'erreur au plus) : nous ne pouvons pas les départager. Seul γ = 0 est
 nettement moins bon. Notre réponse : **n'importe quel γ entre 0.1 et 1**,
 il n'y a pas de meilleure valeur nette sur 1000 étapes.
 
@@ -712,20 +796,44 @@ l'ordre des valeurs Q compte pour choisir l'action.
 
 Oui, la réponse change. Avec plus d'entraînement, les différences
 deviennent nettes (tableau de 3.13) :
-- **γ = 0** est très loin derrière (+0.58 contre +1.29) : il plafonne vers
+- **γ = 0** est très loin derrière (+0.58 contre +1.30) : il plafonne vers
   +1.2, alors que les autres atteignent +2. Sans regarder au-delà du coup
   suivant, il ne peut pas apprendre à aller chercher le fruit.
-- **γ entre 0.1 et 0.8** donne les meilleurs résultats, tous égaux à la
-  marge d'erreur près (la meilleure valeur mesurée est γ = 0.2, +1.292).
-- **γ = 0.9 et γ = 1** sont un peu moins bons (+1.25), et l'écart est
-  plus grand que la marge d'erreur. Avec un γ proche de 1, la valeur Q
-  dépend de beaucoup de coups futurs, qui sont joués en partie au hasard
-  (ε = 0.1). Les estimations sont donc plus bruitées et plus longues à
-  stabiliser. Avec γ = 1, les valeurs Q ne sont même plus bornées, car la
-  tâche est continue et ne s'arrête jamais.
+- **γ entre 0.1 et 0.6** donne les meilleurs résultats, tous égaux à la
+  marge d'erreur près (la meilleure valeur mesurée est γ = 0.5, +1.301).
+- **γ = 0.7 et 0.8** sont un tout petit peu en dessous (+1.28), et **γ = 0.9
+  et γ = 1** encore un peu plus (+1.27 et +1.25, plus loin que la marge
+  d'erreur).
+
+Pour comprendre pourquoi un γ proche de 1 est moins bon, nous avons regardé
+la plus grande valeur Q pendant une longue partie :
+
+```python
+    for g in [0.9, 1]:
+        game = ShortSnake(size)
+        player = GreedyPlayer(game, gamma=g)
+        for step in [10000, 20000, 30000, 40000, 50000]:
+            play(game, player, 10000)
+            print(f"  gamma = {g} : après {step} étapes, Q max = "
+                  f"{max(player.action_values.values()):.1f}")
+```
+
+| Étapes | 10 000 | 20 000 | 30 000 | 40 000 | 50 000 |
+|---|---|---|---|---|---|
+| Q max, γ = 0.9 | 26.2 | 30.2 | 32.8 | 36.8 | 37.6 |
+| Q max, γ = 1 | 34.1 | 50.6 | 73.4 | 89.1 | 107.5 |
+
+Avec γ = 1, Q augmente d'environ 17 toutes les 10 000 étapes et ne s'arrête
+pas. C'est logique : la partie ne finit jamais, et avec γ = 1, la valeur Q
+additionne toutes les récompenses futures sans les diminuer. Comme l'agent
+gagne en moyenne des points, cette somme grandit sans fin. Avec γ = 0.9,
+les récompenses lointaines comptent de moins en moins, et Q augmente de
+moins en moins vite. Avec un γ proche de 1, les valeurs Q mettent donc
+beaucoup plus de temps à se stabiliser, ce qui explique que l'agent
+apprenne un peu moins bien.
 
 Sur 10 000 étapes, la meilleure valeur est donc une valeur **petite ou
-moyenne de γ (entre 0.1 et 0.8)** ; nous gardons γ = 0.5 pour la suite.
+moyenne de γ (entre 0.1 et 0.6)** ; nous gardons γ = 0.5 pour la suite.
 
 ## Exercice 4 (bonus) : snake plus long
 
@@ -743,11 +851,16 @@ voisines, et le fruit sur l'une des N·M − 2 cases libres :
 **N·M × 4 × (N·M − 2)** états, soit 896 sur notre grille 4 × 4 (contre 960
 pour un serpent d'une case).
 
-Plus généralement, pour un serpent de longueur L ≥ 2, la forme du corps est
-donnée par la direction du premier segment (4 choix) puis par celle de
-chaque segment suivant (3 choix, pas de demi-tour). Cela donne au plus
-N·M × 4 × 3^(L−2) × (N·M − L) états (« au plus », car un corps qui se
-croise occupe moins de cases) :
+Pour la question 4.7, nous avons aussi compté les états pour des serpents
+plus longs. Nous comptons les formes possibles du corps derrière la tête :
+la 2e case peut être sur l'un des 4 côtés de la tête, puis chaque case
+suivante n'a plus que 3 places possibles (elle ne peut pas revenir sur la
+case d'avant). Pour 3 cases, cela fait 4 × 3 = 12 formes ; pour 4 cases,
+4 × 3 × 3 = 36 formes, et ainsi de suite (on multiplie par 3 à chaque case
+en plus). Il faut ensuite multiplier par les N·M positions de la tête et
+par le nombre de cases libres pour le fruit. C'est un maximum : sur une
+petite grille, certaines formes se replient sur elles-mêmes et occupent
+moins de cases.
 
 *Code et rédaction : Moïse, Gédéon et Jonas, ensemble.*
 
@@ -825,8 +938,8 @@ Les conclusions sont les mêmes qu'avec un serpent d'une case :
 
 | Longueur | Récompense moyenne (10 000 étapes) |
 |---|---|
-| 1 | +1.287 |
-| 2 | +1.338 |
+| 1 | +1.290 |
+| 2 | +1.353 |
 
 La récompense augmente à la même vitesse. C'est logique d'après 4.1 :
 l'état du serpent de 2 cases contient la même information, et le nombre
@@ -864,7 +977,7 @@ coûte 10 points :
 
 | Longueur | 1 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|
-| Récompense (5000 dernières étapes) | +2.49 | +2.53 | +2.26 | +1.98 | +0.83 | −1.55 |
+| Récompense (5000 dernières étapes) | +2.50 | +2.52 | +2.23 | +1.95 | +0.83 | −1.54 |
 
 Plus le serpent est long, plus l'apprentissage est lent : le nombre d'états
 est multiplié par 3 à chaque case en plus (tableau de 4.2), et chaque état
@@ -890,7 +1003,7 @@ d'étapes, ce qui devient trop long en Python.
   grille 10 × 10 (39 600 états), alors que sur une grille 4 × 4 (960 états)
   la récompense passe d'environ −1.7 à +2.
 - Le facteur d'actualisation γ ne joue presque pas sur 1000 étapes. Sur
-  10 000 étapes, γ = 0 est clairement le pire, une valeur entre 0.1 et 0.8
+  10 000 étapes, γ = 0 est clairement le pire, une valeur entre 0.1 et 0.6
   est la meilleure, et γ proche de 1 est un peu moins bon.
 - Un serpent de 2 cases apprend aussi vite qu'un serpent d'une case (même
   information dans l'état). Ensuite, chaque case en plus multiplie le

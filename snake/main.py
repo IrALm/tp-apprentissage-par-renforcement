@@ -11,7 +11,6 @@ import argparse
 import random
 import sys
 
-# Sortie UTF-8 pour les accents sur les consoles Windows (cp1252).
 try:
     sys.stdout.reconfigure(encoding="utf-8")
 except AttributeError:
@@ -118,31 +117,70 @@ def cmd_ex2(args):
     save(fig, "ex2_7_mdp.png")
 
 
-def cmd_ex3(args):
-    """Exercice 3 : Q-Learning sur un serpent d'une case."""
-    size = args.size
-
-    print(" 3.10 : une seule partie de 1000 étapes (gamma = 0.5)")
-    game = ShortSnake(size)
-    player = GreedyPlayer(game, gamma=0.5)
+def play(game, player, n_steps):
+    """Fait jouer le joueur n_steps étapes et renvoie la liste des récompenses."""
     rewards = []
-    for t in range(1000):
+    for t in range(n_steps):
         action = player.get_action()
         reward = game.move(action)
         player.reward(action, reward)
         rewards.append(reward)
-    print(f"  score final = {game.score}")
+    return rewards
+
+
+def plot_one_game(rewards, title, filename):
+    """Récompense de chaque étape (en haut) et score cumulé (en bas)."""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
     ax1.plot(rewards, ".", markersize=3)
     ax1.set_ylabel("Récompense")
-    ax1.set_title(f"Ex 3.10 : une partie, grille {size} x {size}, gamma = 0.5")
+    ax1.set_title(title)
     ax2.plot(np.cumsum(rewards))
     ax2.set_ylabel("Score cumulé")
     ax2.set_xlabel("Étape")
     for ax in (ax1, ax2):
         ax.grid(alpha=0.3)
     fig.tight_layout()
-    save(fig, "ex3_10_une_partie.png")
+    save(fig, filename)
+
+
+def cmd_ex3_10x10(args):
+    """Exercice 3 sur la grille 10 x 10 de la question 2.2."""
+    print(" une partie de 1000 étapes (gamma = 0.5)")
+    game = ShortSnake(10)
+    rewards = play(game, GreedyPlayer(game, gamma=0.5), 1000)
+    print(f"  score final = {game.score}")
+    plot_one_game(rewards, "Grille 10 x 10 : une partie, gamma = 0.5",
+                  "ex3_10x10_une_partie.png")
+
+    for n_steps, n_runs, window in [(1000, 500, 20), (10000, 100, 200)]:
+        print(f" différents gamma, {n_steps} étapes, {n_runs} parties")
+        curves = {}
+        for g in GAMMAS:
+            curve, per_run = run(g, n_runs, n_steps, size=10)
+            curves[f"gamma = {g}"] = curve
+            print(f"  gamma = {g} : récompense moyenne = {per_run.mean():+.3f}")
+        plot_curves(curves, f"Grille 10 x 10 : facteur d'actualisation, {n_steps} étapes",
+                    f"ex3_10x10_gamma_{n_steps}.png", window=window)
+
+    print(" entraînement long : 200000 étapes, 5 parties (gamma = 0.5)")
+    curve, _ = run(0.5, 5, 200000, size=10)
+    for start in range(0, 200000, 40000):
+        print(f"  étapes {start:6d} à {start + 40000:6d} : récompense moyenne = "
+              f"{curve[start:start + 40000].mean():+.3f}")
+    plot_curves({"grille 10 x 10": curve}, "Grille 10 x 10 : 200000 étapes, gamma = 0.5",
+                "ex3_10x10_200000.png", window=5000)
+
+
+def cmd_ex3(args):
+    """Exercice 3 : Q-Learning sur un serpent d'une case."""
+    size = args.size
+
+    print(" 3.10 : une seule partie de 1000 étapes (gamma = 0.5)")
+    game = ShortSnake(size)
+    rewards = play(game, GreedyPlayer(game, gamma=0.5), 1000)
+    print(f"  score final = {game.score}")
+    plot_one_game(rewards, f"Ex 3.10 : une partie, grille {size} x {size}, gamma = 0.5",
+                  "ex3_10_une_partie.png")
 
     print(" 3.11 : combien de parties pour lisser la courbe ?")
     curves = {}
@@ -179,6 +217,15 @@ def cmd_ex3(args):
     ax.legend()
     fig.tight_layout()
     save(fig, "ex3_13_recherche_gamma.png")
+
+    print(" 3.14 : plus grande valeur Q au cours d'une partie (gamma = 0.9 et 1)")
+    for g in [0.9, 1]:
+        game = ShortSnake(size)
+        player = GreedyPlayer(game, gamma=g)
+        for step in [10000, 20000, 30000, 40000, 50000]:
+            play(game, player, 10000)
+            print(f"  gamma = {g} : après {step} étapes, Q max = "
+                  f"{max(player.action_values.values()):.1f}")
 
 
 def cmd_ex4(args):
@@ -220,17 +267,7 @@ def cmd_ex4(args):
                 "ex4_7_longueurs.png", window=1000)
 
 
-def cmd_grille10(args):
-    """Choix de la grille : sur 10 x 10, l'apprentissage est très lent."""
-    curve, _ = run(0.5, 5, 200000, size=10)
-    for start in range(0, 200000, 40000):
-        print(f"  étapes {start:6d} à {start + 40000:6d} : récompense moyenne = "
-              f"{curve[start:start + 40000].mean():+.3f}")
-    plot_curves({"grille 10 x 10": curve}, "Grille 10 x 10, gamma = 0.5 (5 parties)",
-                "grille_10x10.png", window=5000)
-
-
-COMMANDS = {"ex1": cmd_ex1, "ex2": cmd_ex2, "grille10": cmd_grille10,
+COMMANDS = {"ex1": cmd_ex1, "ex2": cmd_ex2, "ex3_10x10": cmd_ex3_10x10,
             "ex3": cmd_ex3, "ex4": cmd_ex4}
 
 

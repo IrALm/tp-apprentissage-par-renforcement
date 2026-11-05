@@ -66,7 +66,7 @@ def plot_curves(curves, title, filename, window=1):
 
 def gamma_search(gammas, n_runs, n_steps, size=4, length=1):
     """Récompense moyenne par étape pour chaque gamma, avec une marge
-    d'erreur de 2 écarts-types de la moyenne."""
+    d'erreur (2 x écart-type / racine du nombre de parties)."""
     means, errors = [], []
     for gamma in gammas:
         _, per_run = run(gamma, n_runs, n_steps, size, length)
